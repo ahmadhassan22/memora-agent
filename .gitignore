@@ -1,0 +1,21 @@
+# Secrets - NEVER commit
+.env
+
+# Virtual environment
+venv/
+
+# Generated data
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
