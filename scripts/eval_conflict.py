@@ -25,6 +25,10 @@ Note on COMPATIBLE: the naive baseline also keeps both here, so it can score
 as well as Memora on this category. That's intentional and honest — we don't
 rig the baseline to lose. Memora's advantage shows up in CONTRADICT/DUPLICATE.
 
+We also run a separate set of deliberately HARD / ambiguous scenarios through
+Memora only, to stress-test the fuzzy boundary of its judgment and surface
+real limitations rather than hide them behind clear-cut cases.
+
 This calls the real Qwen API (needs your key + network). Run from project root:
     python -m scripts.eval_conflict
 """
@@ -73,6 +77,26 @@ SCENARIOS = [
 ]
 
 
+# Deliberately AMBIGUOUS cases that probe the fuzzy boundary of LLM judgment.
+# These are designed to be hard — some are debatable even for humans. The
+# "expected" label is the most defensible reading, noted per case. Scoring
+# these separately keeps the clear-cut number honest and surfaces real limits.
+HARD_SCENARIOS = [
+    # Past-tense negates a present-tense belief -> outdated.
+    ("contradict", "User lives in Beijing", "User used to live in Beijing"),
+    # One exception is not an identity change -> both can hold.
+    ("compatible", "User is vegetarian", "User ate fish once at a wedding"),
+    # New info refines rather than replaces -> both true.
+    ("compatible", "User likes dogs", "User is afraid of large dogs"),
+    # Same fact, very different wording -> redundant.
+    ("duplicate", "User is employed at a fintech company", "User works in financial technology"),
+    # Preference reversed by negation -> outdated.
+    ("contradict", "User enjoys spicy food", "User can no longer tolerate spicy food"),
+    # Count changed; old count is now wrong -> outdated.
+    ("contradict", "User has one child", "User just had a second child"),
+]
+
+
 def _wipe(user_id):
     """Remove all memories for a user so each scenario starts clean."""
     existing = collection.get(where={"user_id": user_id})
@@ -108,13 +132,13 @@ def _is_correct(category, user_id, old_text, new_text):
     return False
 
 
-def run_system(label, resolver):
-    """Run all scenarios through one resolver; return per-category results."""
+def run_system(label, resolver, scenarios):
+    """Run the given scenarios through one resolver; return per-category results."""
     print(f"\n{'='*60}\n  {label}\n{'='*60}")
     results = {"contradict": [0, 0], "duplicate": [0, 0], "compatible": [0, 0]}  # [correct, total]
 
-    for i, (category, old_text, new_text) in enumerate(SCENARIOS):
-        user_id = f"eval_{label.lower()}_{i}"
+    for i, (category, old_text, new_text) in enumerate(scenarios):
+        user_id = f"eval_{label.lower().replace(' ', '_')}_{i}"
         _wipe(user_id)
 
         # Pre-seed the OLD belief.
@@ -148,19 +172,36 @@ def _summary(label, results):
 def main():
     start = time.time()
     print("Memora conflict-resolution evaluation")
-    print(f"{len(SCENARIOS)} scenarios x 2 systems = {len(SCENARIOS)*2} runs (live Qwen)\n")
+    print(f"Clear-cut: {len(SCENARIOS)} scenarios | Hard/ambiguous: {len(HARD_SCENARIOS)} scenarios")
+    print("(live Qwen judgments)\n")
 
-    memora_results = run_system("MEMORA", resolve_fact)
-    naive_results = run_system("NAIVE", naive_resolve)
+    # ---- Part 1: clear-cut scenarios, Memora vs naive baseline ----
+    print("#" * 60)
+    print("#  PART 1 — CLEAR-CUT SCENARIOS (Memora vs naive baseline)")
+    print("#" * 60)
+    memora_results = run_system("MEMORA (clear-cut)", resolve_fact, SCENARIOS)
+    naive_results = run_system("NAIVE (clear-cut)", naive_resolve, SCENARIOS)
 
-    print(f"\n{'='*60}\n  SUMMARY\n{'='*60}")
+    print(f"\n{'='*60}\n  PART 1 SUMMARY\n{'='*60}")
     m_correct, total = _summary("MEMORA", memora_results)
     n_correct, _ = _summary("NAIVE", naive_results)
-
-    print(f"\n  Memora correctly handled {m_correct}/{total} belief states.")
-    print(f"  Naive baseline handled    {n_correct}/{total}.")
     gain = m_correct - n_correct
-    print(f"  Improvement: +{gain} scenarios ({100*gain/total:.0f} percentage points).")
+    print(f"\n  Clear-cut: Memora {m_correct}/{total} vs naive {n_correct}/{total} "
+          f"(+{gain}, {100*gain/total:.0f} pts)")
+
+    # ---- Part 2: hard/ambiguous scenarios, Memora only ----
+    print("\n" + "#" * 60)
+    print("#  PART 2 — HARD / AMBIGUOUS SCENARIOS (Memora stress test)")
+    print("#" * 60)
+    print("  These probe the fuzzy boundary of conflict judgment. The 'expected'")
+    print("  label is the most defensible reading; some are debatable by design.")
+    hard_results = run_system("MEMORA (hard)", resolve_fact, HARD_SCENARIOS)
+
+    print(f"\n{'='*60}\n  PART 2 SUMMARY\n{'='*60}")
+    h_correct, h_total = _summary("MEMORA (hard)", hard_results)
+    print(f"\n  Hard cases: Memora matched the expected label {h_correct}/{h_total} times.")
+    print("  Mismatches are not necessarily bugs — see per-case notes in the script.")
+
     print(f"\n  Completed in {time.time()-start:.1f}s")
 
 

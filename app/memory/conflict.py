@@ -26,7 +26,7 @@ EXISTING fact: "{existing}"
 NEW fact: "{new}"
 
 Decide the relationship:
-- "contradict": the new fact conflicts with the existing one; the existing is now outdated (e.g. "is vegetarian" vs "started eating chicken")
+- "contradict": the new fact conflicts with the existing one; the existing is now outdated (e.g. "is vegetarian" vs "started eating chicken"). This includes temporal changes where past tense negates a present belief (e.g. "lives in Beijing" vs "used to live in Beijing" — no longer lives there)
 - "duplicate": they say essentially the same thing (e.g. "is vegetarian" vs "does not eat meat")
 - "compatible": both can be true at once; no conflict (e.g. "works in Shenzhen" vs "lives in Shenzhen")
 
