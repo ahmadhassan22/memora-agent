@@ -37,12 +37,30 @@ Return ONLY valid JSON, no extra text:
 def _is_relevant(candidates):
     """
     Adaptive gate: is the nearest memory relevant enough to check?
-    Single clean rule: nearest must be under the absolute ceiling.
-    Qwen makes the real contradiction decision, so this only needs
-    to filter out clearly-unrelated memories.
+    Two checks combined:
+      1. Absolute ceiling — nearest must not be too far away to matter at all.
+      2. Relative gap — nearest must stand out as meaningfully closer than
+         the average of the other candidates. A memory that's only barely
+         closer than everything else isn't specifically related — it's
+         just sitting in a generally similar topic area.
+    Qwen makes the real contradiction decision; this only filters out
+    memories that clearly aren't worth checking.
     """
     nearest = candidates[0]["distance"]
-    return nearest <= ABSOLUTE_CEILING
+
+    if nearest > ABSOLUTE_CEILING:
+        return False
+
+    rest = candidates[1:]
+    if not rest:
+        # Nothing to compare against — absolute ceiling is the only signal.
+        return True
+
+    avg_rest = sum(c["distance"] for c in rest) / len(rest)
+    if avg_rest == 0:
+        return True
+
+    return nearest <= RELATIVE_GAP * avg_rest
 
 
 def detect_conflict(user_id, new_fact_text):

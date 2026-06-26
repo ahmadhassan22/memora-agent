@@ -74,6 +74,32 @@ def search_memory(user_id, query, top_k=3):
 
     return memories
 
+def touch_memory(ids):
+    """
+    Mark one or more memories as accessed right now.
+    Updates each memory's 'last_accessed' timestamp to the current time,
+    while preserving all other metadata. Called when memories are actually
+    retrieved, so the 'recency' signal in scoring/decay reflects real use
+    instead of just age.
+      ids: a list of memory ids to touch
+    """
+    if not ids:
+        return
+
+    existing = collection.get(ids=ids)
+    if not existing["ids"]:
+        return
+
+    now = time.time()
+    new_metas = []
+    for meta in existing["metadatas"]:
+        updated = dict(meta)            # copy so we keep importance, created_at, etc.
+        updated["last_accessed"] = now
+        new_metas.append(updated)
+
+    collection.update(ids=existing["ids"], metadatas=new_metas)
+
+
 def delete_memory(memory_id):
     """
     Delete one memory by its id.

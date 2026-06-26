@@ -7,7 +7,7 @@ Returns the best memories within a limited context budget.
 import time
 from openai import OpenAI
 from app.config import settings
-from app.memory.store import search_memory
+from app.memory.store import search_memory, touch_memory
 
 
 # Half-life for recency scoring (matches decay.py's time-based logic)
@@ -71,10 +71,13 @@ def _rerank(query, memories, top_n):
         for item in response["results"]:
             idx = item["index"]
             reranked.append(memories[idx])
+
+        print(f"[rerank] qwen3-rerank succeeded — reordered {len(reranked)} memories")
         return reranked
 
-    except Exception:
+    except Exception as e:
         # If rerank fails, fall back to the custom-score order we already have.
+        print(f"[rerank] qwen3-rerank FAILED, falling back to custom-score order: {e}")
         return memories[:top_n]
 
 
@@ -103,4 +106,10 @@ def retrieve(user_id, query, top_k=3, candidate_pool=8):
     # Stage 2: take the top custom-scored candidates, then let qwen3-rerank
     # do the final precise ordering for maximum recall accuracy.
     top_candidates = candidates[:max(top_k, 5)]
-    return _rerank(query, top_candidates, top_k)
+    final = _rerank(query, top_candidates, top_k)
+
+    # Returning a memory counts as accessing it — bump last_accessed so the
+    # recency signal in scoring/decay reflects real use, not just age.
+    touch_memory([m["id"] for m in final])
+
+    return final
