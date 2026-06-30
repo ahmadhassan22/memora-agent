@@ -6,9 +6,19 @@ ECS address — this keeps the deployed surface small and directly satisfies
 the requirement that the *backend* runs on Alibaba Cloud, without the added
 complexity of also containerizing and exposing the UI.
 
+## Live deployment
+
+- **Status:** Running
+- **Region:** Singapore
+- **Public endpoint:** `http://43.98.165.11:8000`
+- **Health check:** `http://43.98.165.11:8000/health` → `{"status":"ok","service":"memora"}`
+
+Verified reachable from outside Alibaba Cloud (i.e. from a regular browser on
+the public internet, not just from within the instance itself).
+
 ## One-time server setup (Ubuntu 22.04 instance)
 
-\`\`\`bash
+```bash
 # Install Docker + the Compose plugin
 sudo apt-get update
 sudo apt-get install -y docker.io docker-compose-v2
@@ -20,38 +30,33 @@ cd memora-agent
 
 # Create .env with real credentials (gitignored — never committed)
 nano .env
-\`\`\`
+```
 
 Paste into `.env`:
-\`\`\`
 QWEN_API_KEY=your-key-here
 QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-\`\`\`
-
 ## Build and run
 
-\`\`\`bash
+```bash
 cd deploy
 sudo docker compose up -d --build
-\`\`\`
+```
 
 ## Verify it's running
 
-\`\`\`bash
+```bash
 curl http://localhost:8000/health
 # expect: {"status":"ok","service":"memora"}
-\`\`\`
+```
 
 From your own machine (not the server), confirm it's reachable publicly:
-\`\`\`
 http://<ECS_PUBLIC_IP>:8000/health
-\`\`\`
 Requires port 8000 to be open in the instance's security group (inbound rule).
 
 ## Common operations
 
-\`\`\`bash
+```bash
 sudo docker compose logs -f         # follow live logs
 sudo docker compose down            # stop the container
 sudo docker compose up -d --build   # rebuild after a code change
-\`\`\`
+```

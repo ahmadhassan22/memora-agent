@@ -55,32 +55,20 @@ A two-stage pipeline mirroring Qwen's recommended RAG pattern — *retrieve many
 
 ![Memora Architecture](docs/architecture_diagram.png)
 User → Streamlit UI → FastAPI Backend → Agent Loop
-
 │
-
 ┌───────────────┬───────────┼───────────────┐
-
 ▼               ▼           ▼               ▼
-
 Extractor     Conflict ★    Retriever ★      Decay ★
-
 │               │           │               │
-
 └───────────────┴─────┬─────┴───────────────┘
-
 ▼
-
 ChromaDB Vector Store
-
 │
-
 ▼
-
 Qwen Cloud (Alibaba Cloud DashScope API)
-
 Chat · Embeddings · Rerank
 
-Both the AI models (Qwen Cloud) and the target backend hosting (Alibaba Cloud ECS) run on Alibaba Cloud infrastructure.
+Both the AI models (Qwen Cloud) and the backend hosting (Alibaba Cloud ECS) run on Alibaba Cloud infrastructure.
 
 ---
 
@@ -117,65 +105,35 @@ Memora wasn't just written once and declared done. The interesting engineering i
 
 ## Project Structure
 memora-agent/
-
 ├── app/
-
 │   ├── main.py              # FastAPI app — /chat, /memories, /decay, /health (+ error handling)
-
 │   ├── config.py            # Central settings, loads .env safely
-
 │   ├── memory/
-
 │   │   ├── extractor.py     # Pulls memory-worthy facts from raw messages
-
 │   │   ├── store.py         # ChromaDB read/write + touch_memory
-
 │   │   ├── conflict.py      # Conflict detection + resolution (★)
-
 │   │   ├── decay.py         # Forgetting / relevance decay (★)
-
 │   │   └── retriever.py     # Custom scoring + qwen3-rerank (★)
-
 │   └── agent/
-
 │       ├── llm_client.py    # Qwen API wrapper (chat + embeddings)
-
 │       └── agent_loop.py    # Orchestrates the full pipeline
-
 ├── ui/
-
 │   └── app.py               # Streamlit chat + live memory visualization
-
 ├── scripts/
-
 │   ├── seed_demo_data.py    # Plants aged/low-value memories so decay is demoable
-
 │   └── eval_conflict.py     # Conflict-resolution eval vs naive baseline
-
 ├── tests/
-
 │   ├── conftest.py          # In-memory store + fake-embedding fixtures
-
 │   ├── test_isolation.py    # Multi-user isolation guarantees
-
 │   └── test_conflict.py     # Conflict logic + adaptive-gate math
-
 ├── docs/
-
 │   └── architecture_diagram.png
-
 ├── deploy/
-
 │   ├── Dockerfile
-
 │   ├── docker-compose.yml
-
 │   └── deploy_notes.md
-
 ├── data/                    # ChromaDB storage (gitignored)
-
 ├── requirements.txt
-
 └── .env                     # API keys (gitignored, never committed)
 ---
 
@@ -194,8 +152,8 @@ pip install -r requirements.txt
 
 **3. Configure environment variables** — create a `.env` file:
 QWEN_API_KEY=your-key-here
-
 QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+
 **4. Run the backend**
 ```bash
 uvicorn app.main:app --reload
@@ -246,7 +204,12 @@ Interactive API docs at `/docs` once the server is running.
 
 ## Deployment
 
-Memora is containerized with Docker and **designed for Alibaba Cloud ECS**, with the FastAPI backend exposed via a public endpoint and ChromaDB persisted to a mounted volume. The Qwen models are already served from Alibaba Cloud (DashScope). **Status: ECS deployment in progress** — provisioning is currently blocked on account payment verification (a known friction point for foreign residents in China), with a support ticket open. The deployment configuration lives in [`deploy/`](deploy/).
+Memora's FastAPI backend is containerized with Docker and **deployed live on Alibaba Cloud ECS** (Singapore region), with ChromaDB persisted to a mounted Docker volume. The Qwen models are served from Alibaba Cloud DashScope.
+
+- **Live endpoint:** `http://43.98.165.11:8000`
+- **Health check:** `http://43.98.165.11:8000/health` → `{"status":"ok","service":"memora"}`
+
+Verified reachable from the public internet, not just from within the instance. The Streamlit UI runs locally and points at this public endpoint — keeping the deployed surface to just the backend, which is what the requirement actually asks for. Full setup steps and live status are documented in [`deploy/deploy_notes.md`](deploy/deploy_notes.md).
 
 ---
 
