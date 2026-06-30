@@ -54,19 +54,22 @@ A two-stage pipeline mirroring Qwen's recommended RAG pattern — *retrieve many
 ## Architecture
 
 ![Memora Architecture](docs/architecture_diagram.png)
+
+```
 User → Streamlit UI → FastAPI Backend → Agent Loop
-│
-┌───────────────┬───────────┼───────────────┐
-▼               ▼           ▼               ▼
-Extractor     Conflict ★    Retriever ★      Decay ★
-│               │           │               │
-└───────────────┴─────┬─────┴───────────────┘
-▼
-ChromaDB Vector Store
-│
-▼
-Qwen Cloud (Alibaba Cloud DashScope API)
-Chat · Embeddings · Rerank
+                                            │
+                ┌───────────────┬───────────┼───────────────┐
+                ▼               ▼           ▼               ▼
+           Extractor     Conflict ★    Retriever ★      Decay ★
+                │               │           │               │
+                └───────────────┴─────┬─────┴───────────────┘
+                                       ▼
+                              ChromaDB Vector Store
+                                       │
+                                       ▼
+                     Qwen Cloud (Alibaba Cloud DashScope API)
+                     Chat · Embeddings · Rerank
+```
 
 Both the AI models (Qwen Cloud) and the backend hosting (Alibaba Cloud ECS) run on Alibaba Cloud infrastructure.
 
@@ -104,6 +107,8 @@ Memora wasn't just written once and declared done. The interesting engineering i
 ---
 
 ## Project Structure
+
+```
 memora-agent/
 ├── app/
 │   ├── main.py              # FastAPI app — /chat, /memories, /decay, /health (+ error handling)
@@ -135,6 +140,8 @@ memora-agent/
 ├── data/                    # ChromaDB storage (gitignored)
 ├── requirements.txt
 └── .env                     # API keys (gitignored, never committed)
+```
+
 ---
 
 ## Setup
@@ -151,8 +158,10 @@ pip install -r requirements.txt
 ```
 
 **3. Configure environment variables** — create a `.env` file:
+```
 QWEN_API_KEY=your-key-here
 QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+```
 
 **4. Run the backend**
 ```bash
